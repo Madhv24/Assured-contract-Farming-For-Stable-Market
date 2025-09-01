@@ -228,6 +228,19 @@ router.post('/interest-in-farmer/:farmerId', auth, async (req, res) => {
     farmer.interestedBuyers.push({ buyerId: buyer._id });
     await farmer.save();
 
+    // Emit real-time update to farmer
+    try {
+      const io = getIO();
+      if (io) {
+        io.to(farmerId).emit('buyerInterest', {
+          buyerId: buyer._id,
+          farmerId: farmerId
+        });
+      }
+    } catch (e) {
+      // noop if socket not ready
+    }
+
     res.json({ message: 'Interest registered successfully' });
   } catch (error) {
     console.error('Interest in farmer error:', error);
@@ -235,11 +248,11 @@ router.post('/interest-in-farmer/:farmerId', auth, async (req, res) => {
   }
 });
 
-// Get available farmers
+// Get all farmers (with availability/status and media info)
 router.get('/available-farmers', auth, async (req, res) => {
   try {
-    const farmers = await Farmer.find({ isAvailable: true })
-      .select('name companyName contactInfo farmDetails cropDetails climateSuitability resourceAvailability isAvailable')
+    const farmers = await Farmer.find({})
+      .select('name companyName contactInfo farmDetails cropDetails climateSuitability resourceAvailability isAvailable status images contractPapers')
       .populate('userId', 'email');
     
     res.json({ farmers });
@@ -349,11 +362,11 @@ router.put('/farmer-interest/:farmerId', auth, async (req, res) => {
   }
 });
 
-// Get all buyers for farmers to browse
+// Get all buyers for farmers to browse (include status/media)
 router.get('/all-buyers', async (req, res) => {
   try {
-    const buyers = await Buyer.find({ isAvailable: true })
-      .select('name companyName cropRequirements preferredArea preferredRegion priceRange contactInfo')
+    const buyers = await Buyer.find({})
+      .select('name companyName cropRequirements preferredArea preferredRegion priceRange contactInfo isAvailable status images requirementDocs')
       .populate('userId', 'email');
     
     res.json({ buyers });

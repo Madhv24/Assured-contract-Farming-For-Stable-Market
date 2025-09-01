@@ -20,6 +20,38 @@ function emitProfileStatusChanged(entity, id, status, isAvailable) {
   }
 }
 
-module.exports = { setIO, getIO, emitAvailabilityUpdate, emitProfileStatusChanged };
+function emitProgressUpdate(contractId, step, status, notes, updatedAt) {
+  if (ioInstance) {
+    ioInstance.to(`contract_${contractId}`).emit('progress:update', { 
+      contractId, 
+      step, 
+      status, 
+      notes, 
+      updatedAt 
+    });
+    ioInstance.to(`contract_${contractId}`).emit('progressUpdated', { 
+      contractId, step, status, notes, updatedAt 
+    });
+  }
+}
+
+function emitProgressFilesUpdate(contractId, step, files) {
+  if (ioInstance) {
+    ioInstance.to(`contract_${contractId}`).emit('progress:files:update', { 
+      contractId, 
+      step, 
+      files 
+    });
+  }
+}
+
+module.exports = { 
+  setIO, 
+  getIO, 
+  emitAvailabilityUpdate, 
+  emitProfileStatusChanged,
+  emitProgressUpdate,
+  emitProgressFilesUpdate
+};
 
 

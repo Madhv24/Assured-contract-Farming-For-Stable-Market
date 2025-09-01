@@ -84,6 +84,15 @@ const buyerSchema = new mongoose.Schema({
       type: String,
       enum: ['pending', 'accepted', 'rejected'],
       default: 'pending'
+    },
+    contractStatus: {
+      type: String,
+      enum: ['none', 'pending', 'active', 'completed'],
+      default: 'none'
+    },
+    contractId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Contract'
     }
   }],
   createdAt: {

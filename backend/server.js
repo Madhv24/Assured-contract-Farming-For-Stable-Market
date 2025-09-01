@@ -31,7 +31,9 @@ app.use('/api/landowners', require('./routes/landowners'));
 app.use('/api/farmers', require('./routes/farmers'));
 app.use('/api/buyers', require('./routes/buyers'));
 app.use('/api/contracts', require('./routes/contracts'));
+app.use('/api/landowner-contracts', require('./routes/landowner-contracts'));
 app.use('/api/requests', require('./routes/requests'));
+app.use('/api/progress', require('./routes/progress'));
 
 // Serve React app in production
 if (process.env.NODE_ENV === 'production') {
@@ -51,7 +53,20 @@ const io = require('socket.io')(server, {
 setIO(io);
 
 io.on('connection', (socket) => {
-  // Could use rooms per role in future
+  // Join contract room for real-time updates
+  socket.on('join', (room) => {
+    socket.join(room);
+    console.log(`Socket ${socket.id} joined room: ${room}`);
+  });
+
+  socket.on('leave', (room) => {
+    socket.leave(room);
+    console.log(`Socket ${socket.id} left room: ${room}`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`Socket ${socket.id} disconnected`);
+  });
 });
 
 const PORT = process.env.PORT || 5000;

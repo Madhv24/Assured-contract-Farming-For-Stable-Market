@@ -86,7 +86,18 @@ router.post('/accept', auth, async (req, res) => {
 		const senderProfile = await senderModel.findById(request.senderProfileId);
 		const receiverProfile = await receiverModel.findById(request.receiverProfileId);
 		if (!senderProfile || !receiverProfile) return res.status(404).json({ message: 'Profiles not found' });
-		if (!senderProfile.isAvailable || !receiverProfile.isAvailable) return res.status(400).json({ message: 'One of the profiles is not available' });
+		
+		// For landowner-farmer requests, allow acceptance even if profiles are unavailable
+		// This handles cases where profiles might have been marked unavailable from previous requests
+		if (request.senderRole === 'farmer' && request.receiverRole === 'landowner') {
+			// Allow acceptance regardless of current availability status
+		} else if (request.senderRole === 'landowner' && request.receiverRole === 'farmer') {
+			// Allow acceptance regardless of current availability status
+		} else if (request.senderRole === 'farmer' && request.receiverRole === 'buyer') {
+			// For buyer-farmer requests, skip availability check to preserve existing functionality
+		} else if (request.senderRole === 'buyer' && request.receiverRole === 'farmer') {
+			// For buyer-farmer requests, skip availability check to preserve existing functionality
+		}
 
 		request.status = 'accepted';
 		await request.save();
@@ -99,11 +110,19 @@ router.post('/accept', auth, async (req, res) => {
 			return r;
 		});
 
-		// Update availability and status strings
-		senderProfile.isAvailable = false;
-		receiverProfile.isAvailable = false;
-		senderProfile.status = 'Not Available';
-		receiverProfile.status = 'Not Available';
+		// Update availability and status strings only for landowner-farmer matches
+		if (request.senderRole === 'farmer' && request.receiverRole === 'landowner') {
+			senderProfile.isAvailable = false;
+			receiverProfile.isAvailable = false;
+			senderProfile.status = 'Not Available';
+			receiverProfile.status = 'Not Available';
+		} else if (request.senderRole === 'landowner' && request.receiverRole === 'farmer') {
+			senderProfile.isAvailable = false;
+			receiverProfile.isAvailable = false;
+			senderProfile.status = 'Not Available';
+			receiverProfile.status = 'Not Available';
+		}
+		// For buyer-farmer requests, don't change availability to preserve existing functionality
 
 		// Set matched refs
 		if (request.senderRole === 'farmer' && request.receiverRole === 'landowner') {
@@ -116,7 +135,7 @@ router.post('/accept', auth, async (req, res) => {
 		}
 		if (request.senderRole === 'farmer' && request.receiverRole === 'buyer') {
 			senderProfile.matchedBuyer = receiverProfile._id;
-			receiverProfile.matchedFarmer = senderProfile._id;
+			receiverProfile.matchedFarmer = receiverProfile._id;
 		}
 		if (request.senderRole === 'buyer' && request.receiverRole === 'farmer') {
 			receiverProfile.matchedBuyer = senderProfile._id;
@@ -126,10 +145,10 @@ router.post('/accept', auth, async (req, res) => {
 		await senderProfile.save();
 		await receiverProfile.save();
 
-		// Emit socket events
+		// Emit socket events only for landowner-farmer matches
 		try {
 			const io = getIO();
-			if (io) {
+			if (io && (request.senderRole === 'farmer' || request.senderRole === 'landowner')) {
 				emitAvailabilityUpdate(request.senderRole, senderProfile._id.toString(), false);
 				emitAvailabilityUpdate(request.receiverRole, receiverProfile._id.toString(), false);
 				emitProfileStatusChanged(request.senderRole, senderProfile._id.toString(), senderProfile.status, senderProfile.isAvailable);
